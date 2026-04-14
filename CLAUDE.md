@@ -221,7 +221,7 @@ Page body section structure (heading_2 blocks, in order):
 
 ## Current status
 
-**Steps 1–9 complete.**
+**Steps 1–10 complete.**
 
 **Step 1** — Project scaffold in place and pushed to GitHub (AutoBotBot/fx_news). All dependencies installed via uv.
 
@@ -245,4 +245,6 @@ Known gotchas resolved:
 - notion-client v3 removed `databases.query()` → client pinned to Notion API version `2022-06-28`
 - BST→UTC date conversion broke the date filter → `Date` property stored as plain `YYYY-MM-DD`
 
-**Next:** Execute Step 10 — End-of-day capture orchestrator.
+**Step 10** — `src/end_of_day.py` built and tested. Time gate (11:55–12:15 UK, skips weekends, FORCE_RUN=1 to bypass). Fetches block data, writes to Notion, sends Telegram confirmation. Idempotency confirmed — second run skips '📊 Daily Block Data' if already populated. Notion fallback: if write fails, block values are sent via Telegram so data isn't lost.
+
+**Next:** Execute Step 11 — GitHub Actions workflows.
