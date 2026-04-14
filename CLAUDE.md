@@ -221,7 +221,7 @@ Page body section structure (heading_2 blocks, in order):
 
 ## Current status
 
-**Steps 1–4 complete.**
+**Steps 1–5 complete.**
 
 **Step 1** — Project scaffold in place and pushed to GitHub (AutoBotBot/fx_news). All dependencies installed via uv.
 
@@ -231,8 +231,10 @@ Page body section structure (heading_2 blocks, in order):
 
 **Step 4** — `src/price_data.py` built and tested. `get_market_context()` returns full context dict with Asian range, overnight change, yesterday recap, key levels with NEARBY flags, and 20-day avg range.
 
+**Step 5** — `src/correlations.py` built and tested. `get_correlations()` returns DXY/gold/ES direction labels, % changes, risk tone, and correlations_text. Per-ticker failure handling — one bad ticker does not crash the function.
+
 Known gotchas resolved:
 - notion-client v3 removed `databases.query()` → client pinned to Notion API version `2022-06-28`
 - BST→UTC date conversion broke the date filter → `Date` property stored as plain `YYYY-MM-DD`
 
-**Next:** Execute Step 5 — Correlations module.
+**Next:** Execute Step 6 — Block data module for end-of-day capture.
