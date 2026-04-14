@@ -221,7 +221,7 @@ Page body section structure (heading_2 blocks, in order):
 
 ## Current status
 
-**Steps 1–8 complete.**
+**Steps 1–9 complete.**
 
 **Step 1** — Project scaffold in place and pushed to GitHub (AutoBotBot/fx_news). All dependencies installed via uv.
 
@@ -239,8 +239,10 @@ Page body section structure (heading_2 blocks, in order):
 
 **Step 8** — `src/news.py` and `prompts/session_context.md` built and tested. `fetch_headlines()` aggregates 5 RSS feeds with dedup. `generate_session_context()` loads the prompt template and calls Claude API (claude-sonnet-4-6, max_tokens=1500, temperature=0.3). `parse_brief()` extracts volatility_expectation and liquidity_context via regex (handles Claude's bold markdown wrapping). End-to-end test produced a full, well-structured brief.
 
+**Step 9** — `src/main.py` built and tested end-to-end. Full pipeline: price → correlations → calendar → headlines → Claude brief → Notion write → Telegram push. Time gate (07:25–07:35 UK, skips weekends, FORCE_RUN=1 to bypass). All stages independently try/except with Telegram failure alerts. Idempotency confirmed — second run skips all sections already written. Also fixed bug in `notion_log.py`: `ev['time']` → `ev['time_uk']` to match calendar_fetch schema.
+
 Known gotchas resolved:
 - notion-client v3 removed `databases.query()` → client pinned to Notion API version `2022-06-28`
 - BST→UTC date conversion broke the date filter → `Date` property stored as plain `YYYY-MM-DD`
 
-**Next:** Execute Step 9 — Morning brief orchestrator.
+**Next:** Execute Step 10 — End-of-day capture orchestrator.

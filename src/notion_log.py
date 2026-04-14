@@ -275,7 +275,7 @@ def populate_morning_brief(
             previous = ev.get("previous") or "n/a"
             calendar_blocks.append(
                 _bullet(
-                    f"{ev['time']} UK – {ev['country']} – {ev['event']} "
+                    f"{ev['time_uk']} UK – {ev['country']} – {ev['event']} "
                     f"(forecast: {forecast}, previous: {previous})"
                 )
             )
