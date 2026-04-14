@@ -221,7 +221,7 @@ Page body section structure (heading_2 blocks, in order):
 
 ## Current status
 
-**Steps 1–5 complete.**
+**Steps 1–6 complete.**
 
 **Step 1** — Project scaffold in place and pushed to GitHub (AutoBotBot/fx_news). All dependencies installed via uv.
 
@@ -233,8 +233,10 @@ Page body section structure (heading_2 blocks, in order):
 
 **Step 5** — `src/correlations.py` built and tested. `get_correlations()` returns DXY/gold/ES direction labels, % changes, risk tone, and correlations_text. Per-ticker failure handling — one bad ticker does not crash the function.
 
+**Step 6** — `src/block_data.py` built and tested. `get_daily_blocks()` returns high/low/range_pips for Asian Block (00:00–07:00), Open Block (08:00–08:30), and Session Block (08:30–12:00) using 5-minute yfinance data. Empty-block and total-failure edge cases handled with logged warnings.
+
 Known gotchas resolved:
 - notion-client v3 removed `databases.query()` → client pinned to Notion API version `2022-06-28`
 - BST→UTC date conversion broke the date filter → `Date` property stored as plain `YYYY-MM-DD`
 
-**Next:** Execute Step 6 — Block data module for end-of-day capture.
+**Next:** Execute Step 7 — Economic calendar module.
