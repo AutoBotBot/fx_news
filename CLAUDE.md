@@ -221,4 +221,13 @@ Page body section structure (heading_2 blocks, in order):
 
 ## Current status
 
-Pre-build. Follow `masterplan.md` step by step. The user will say "execute step N" — read that step, do exactly what it says, then stop.
+**Step 1 complete.** Project scaffold is in place and pushed to GitHub (AutoBotBot/fx_news).
+
+- uv project initialised, all dependencies installed
+- `src/`, `tests/`, `prompts/`, `.github/workflows/` directories created
+- `.gitignore`, `.env.example`, `README.md`, `pyproject.toml` committed
+- `.env` populated locally with real keys (gitignored)
+- `apikeys.md` added to `.gitignore` — never commit this file
+- `TELEGRAM_CHAT_ID` still needs to be filled in `.env` (get it from the BotFather getUpdates URL)
+
+**Next:** Execute Step 2 — Telegram delivery module.
