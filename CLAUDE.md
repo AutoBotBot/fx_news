@@ -221,16 +221,18 @@ Page body section structure (heading_2 blocks, in order):
 
 ## Current status
 
-**Steps 1–3 complete.**
+**Steps 1–4 complete.**
 
 **Step 1** — Project scaffold in place and pushed to GitHub (AutoBotBot/fx_news). All dependencies installed via uv.
 
-**Step 2** — `src/telegram_send.py` built and tested end-to-end. `send_message()` and `escape_markdown_v2()` working. `TELEGRAM_CHAT_ID` confirmed (8334813792).
+**Step 2** — `src/telegram_send.py` built and tested end-to-end. `send_message()` and `escape_markdown_v2()` working. `TELEGRAM_CHAT_ID` confirmed.
 
 **Step 3** — `src/notion_log.py` built and tested. All functions working and idempotency verified.
+
+**Step 4** — `src/price_data.py` built and tested. `get_market_context()` returns full context dict with Asian range, overnight change, yesterday recap, key levels with NEARBY flags, and 20-day avg range.
 
 Known gotchas resolved:
 - notion-client v3 removed `databases.query()` → client pinned to Notion API version `2022-06-28`
 - BST→UTC date conversion broke the date filter → `Date` property stored as plain `YYYY-MM-DD`
 
-**Next:** Execute Step 4 — Price data, levels, and Asian range module.
+**Next:** Execute Step 5 — Correlations module.
