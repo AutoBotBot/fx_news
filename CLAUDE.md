@@ -221,7 +221,7 @@ Page body section structure (heading_2 blocks, in order):
 
 ## Current status
 
-**Steps 1–6 complete.**
+**Steps 1–8 complete.**
 
 **Step 1** — Project scaffold in place and pushed to GitHub (AutoBotBot/fx_news). All dependencies installed via uv.
 
@@ -235,8 +235,12 @@ Page body section structure (heading_2 blocks, in order):
 
 **Step 6** — `src/block_data.py` built and tested. `get_daily_blocks()` returns high/low/range_pips for Asian Block (00:00–07:00), Open Block (08:00–08:30), and Session Block (08:30–12:00) using 5-minute yfinance data. Empty-block and total-failure edge cases handled with logged warnings.
 
+**Step 7** — `src/calendar_fetch.py` built and tested. `get_upcoming_events()` fetches Forex Factory RSS, filters to GBP/USD events, medium/high importance only, within the look-ahead window. Returns empty list on any failure.
+
+**Step 8** — `src/news.py` and `prompts/session_context.md` built and tested. `fetch_headlines()` aggregates 5 RSS feeds with dedup. `generate_session_context()` loads the prompt template and calls Claude API (claude-sonnet-4-6, max_tokens=1500, temperature=0.3). `parse_brief()` extracts volatility_expectation and liquidity_context via regex (handles Claude's bold markdown wrapping). End-to-end test produced a full, well-structured brief.
+
 Known gotchas resolved:
 - notion-client v3 removed `databases.query()` → client pinned to Notion API version `2022-06-28`
 - BST→UTC date conversion broke the date filter → `Date` property stored as plain `YYYY-MM-DD`
 
-**Next:** Execute Step 7 — Economic calendar module.
+**Next:** Execute Step 9 — Morning brief orchestrator.
