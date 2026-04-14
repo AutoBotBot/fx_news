@@ -221,32 +221,4 @@ Page body section structure (heading_2 blocks, in order):
 
 ## Current status
 
-**Steps 1–11 complete.**
-
-**Step 1** — Project scaffold in place and pushed to GitHub (AutoBotBot/fx_news). All dependencies installed via uv.
-
-**Step 2** — `src/telegram_send.py` built and tested end-to-end. `send_message()` and `escape_markdown_v2()` working. `TELEGRAM_CHAT_ID` confirmed.
-
-**Step 3** — `src/notion_log.py` built and tested. All functions working and idempotency verified.
-
-**Step 4** — `src/price_data.py` built and tested. `get_market_context()` returns full context dict with Asian range, overnight change, yesterday recap, key levels with NEARBY flags, and 20-day avg range.
-
-**Step 5** — `src/correlations.py` built and tested. `get_correlations()` returns DXY/gold/ES direction labels, % changes, risk tone, and correlations_text. Per-ticker failure handling — one bad ticker does not crash the function.
-
-**Step 6** — `src/block_data.py` built and tested. `get_daily_blocks()` returns high/low/range_pips for Asian Block (00:00–07:00), Open Block (08:00–08:30), and Session Block (08:30–12:00) using 5-minute yfinance data. Empty-block and total-failure edge cases handled with logged warnings.
-
-**Step 7** — `src/calendar_fetch.py` built and tested. `get_upcoming_events()` fetches Forex Factory RSS, filters to GBP/USD events, medium/high importance only, within the look-ahead window. Returns empty list on any failure.
-
-**Step 8** — `src/news.py` and `prompts/session_context.md` built and tested. `fetch_headlines()` aggregates 5 RSS feeds with dedup. `generate_session_context()` loads the prompt template and calls Claude API (claude-sonnet-4-6, max_tokens=1500, temperature=0.3). `parse_brief()` extracts volatility_expectation and liquidity_context via regex (handles Claude's bold markdown wrapping). End-to-end test produced a full, well-structured brief.
-
-**Step 9** — `src/main.py` built and tested end-to-end. Full pipeline: price → correlations → calendar → headlines → Claude brief → Notion write → Telegram push. Time gate (07:25–07:35 UK, skips weekends, FORCE_RUN=1 to bypass). All stages independently try/except with Telegram failure alerts. Idempotency confirmed — second run skips all sections already written. Also fixed bug in `notion_log.py`: `ev['time']` → `ev['time_uk']` to match calendar_fetch schema.
-
-Known gotchas resolved:
-- notion-client v3 removed `databases.query()` → client pinned to Notion API version `2022-06-28`
-- BST→UTC date conversion broke the date filter → `Date` property stored as plain `YYYY-MM-DD`
-
-**Step 10** — `src/end_of_day.py` built and tested. Time gate (11:55–12:15 UK, skips weekends, FORCE_RUN=1 to bypass). Fetches block data, writes to Notion, sends Telegram confirmation. Idempotency confirmed — second run skips '📊 Daily Block Data' if already populated. Notion fallback: if write fails, block values are sent via Telegram so data isn't lost.
-
-**Step 11** — GitHub Actions workflow files created: `.github/workflows/morning-brief.yml` and `.github/workflows/end-of-day.yml`. Both use dual UTC cron schedules to cover BST/GMT, support `workflow_dispatch` with `force_run`, install dependencies with `uv sync`, and run `src.main` / `src.end_of_day` with environment variables sourced from GitHub Actions secrets.
-
-**Next:** Execute Step 12 — Production verification and handover.
+v1 live. Morning brief delivers at 07:30 UK weekdays, end-of-day capture at 12:01 PM UK weekdays. Strategy-agnostic context provider. Bot is in production.
