@@ -1,0 +1,35 @@
+name: morning-brief
+
+on:
+  schedule:
+    # Dual cron handles BST (UTC+1) and GMT (UTC+0).
+    # main.py's 07:25–07:35 UK time gate no-ops the off-season run.
+    - cron: '30 6 * * 1-5'   # 06:30 UTC = 07:30 BST (summer)
+    - cron: '30 7 * * 1-5'   # 07:30 UTC = 07:30 GMT (winter)
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Bypass time gate'
+        type: boolean
+        default: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run morning brief
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          FORCE_RUN: ${{ inputs.force_run && '1' || '' }}
+        run: uv run python -m src.main

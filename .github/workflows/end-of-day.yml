@@ -1,0 +1,35 @@
+name: end-of-day
+
+on:
+  schedule:
+    # Dual cron handles BST (UTC+1) and GMT (UTC+0).
+    # end_of_day.py's 11:55–12:15 UK time gate no-ops the off-season run.
+    - cron: '1 11 * * 1-5'   # 11:01 UTC = 12:01 BST (summer)
+    - cron: '1 12 * * 1-5'   # 12:01 UTC = 12:01 GMT (winter)
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Bypass time gate'
+        type: boolean
+        default: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run end-of-day capture
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          FORCE_RUN: ${{ inputs.force_run && '1' || '' }}
+        run: uv run python -m src.end_of_day

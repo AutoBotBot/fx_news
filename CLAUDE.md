@@ -221,7 +221,7 @@ Page body section structure (heading_2 blocks, in order):
 
 ## Current status
 
-**Steps 1–10 complete.**
+**Steps 1–11 complete.**
 
 **Step 1** — Project scaffold in place and pushed to GitHub (AutoBotBot/fx_news). All dependencies installed via uv.
 
@@ -247,4 +247,6 @@ Known gotchas resolved:
 
 **Step 10** — `src/end_of_day.py` built and tested. Time gate (11:55–12:15 UK, skips weekends, FORCE_RUN=1 to bypass). Fetches block data, writes to Notion, sends Telegram confirmation. Idempotency confirmed — second run skips '📊 Daily Block Data' if already populated. Notion fallback: if write fails, block values are sent via Telegram so data isn't lost.
 
-**Next:** Execute Step 11 — GitHub Actions workflows.
+**Step 11** — GitHub Actions workflow files created: `.github/workflows/morning-brief.yml` and `.github/workflows/end-of-day.yml`. Both use dual UTC cron schedules to cover BST/GMT, support `workflow_dispatch` with `force_run`, install dependencies with `uv sync`, and run `src.main` / `src.end_of_day` with environment variables sourced from GitHub Actions secrets.
+
+**Next:** Execute Step 12 — Production verification and handover.
