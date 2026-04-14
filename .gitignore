@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.venv/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# API keys scratch file — never commit
+apikeys.md
