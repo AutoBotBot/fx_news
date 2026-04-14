@@ -221,13 +221,16 @@ Page body section structure (heading_2 blocks, in order):
 
 ## Current status
 
-**Step 1 complete.** Project scaffold is in place and pushed to GitHub (AutoBotBot/fx_news).
+**Steps 1–3 complete.**
 
-- uv project initialised, all dependencies installed
-- `src/`, `tests/`, `prompts/`, `.github/workflows/` directories created
-- `.gitignore`, `.env.example`, `README.md`, `pyproject.toml` committed
-- `.env` populated locally with real keys (gitignored)
-- `apikeys.md` added to `.gitignore` — never commit this file
-- `TELEGRAM_CHAT_ID` still needs to be filled in `.env` (get it from the BotFather getUpdates URL)
+**Step 1** — Project scaffold in place and pushed to GitHub (AutoBotBot/fx_news). All dependencies installed via uv.
 
-**Next:** Execute Step 2 — Telegram delivery module.
+**Step 2** — `src/telegram_send.py` built and tested end-to-end. `send_message()` and `escape_markdown_v2()` working. `TELEGRAM_CHAT_ID` confirmed (8334813792).
+
+**Step 3** — `src/notion_log.py` built and tested. All functions working and idempotency verified.
+
+Known gotchas resolved:
+- notion-client v3 removed `databases.query()` → client pinned to Notion API version `2022-06-28`
+- BST→UTC date conversion broke the date filter → `Date` property stored as plain `YYYY-MM-DD`
+
+**Next:** Execute Step 4 — Price data, levels, and Asian range module.
