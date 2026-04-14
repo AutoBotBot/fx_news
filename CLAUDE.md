@@ -45,7 +45,7 @@ src/main.py orchestrator
   2. Fetch yesterday's session recap                (yfinance)
   3. Fetch key nearby levels                        (yfinance)
   4. Fetch correlation context (DXY, gold, ES)      (yfinance)
-  5. Fetch economic calendar                        (Trading Economics)
+  5. Fetch economic calendar                        (Forex Factory RSS)
   6. Fetch RSS headlines                            (feedparser)
   7. Generate session context brief                 (Claude API)
   8. Create today's Notion page                     (notion-client)
@@ -137,7 +137,7 @@ fx-morning-brief/
 │   ├── price_data.py              # Overnight + Asian range + recap + levels
 │   ├── correlations.py            # DXY, gold, ES context
 │   ├── block_data.py              # 5-min block extremes for end-of-day
-│   ├── calendar_fetch.py          # Trading Economics calendar
+│   ├── calendar_fetch.py          # Forex Factory RSS calendar
 │   ├── news.py                    # RSS + Claude session context brief
 │   ├── telegram_send.py           # Delivery
 │   └── notion_log.py              # Daily log page management

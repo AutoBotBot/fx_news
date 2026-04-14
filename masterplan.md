@@ -52,9 +52,6 @@ Keep a scratch text file open with these.
 - Capabilities: Read, Update, Insert content
 - Copy the Internal Integration Secret
 
-**Trading Economics API** (optional)
-- tradingeconomics.com/api → free tier → save key
-
 **GitHub**
 - `gh auth login` in terminal
 
@@ -145,7 +142,7 @@ Tasks:
    TELEGRAM_CHAT_ID=
    NOTION_TOKEN=
    NOTION_DATABASE_ID=
-   TRADING_ECONOMICS_KEY=
+   FOREX_FACTORY_RSS=https://rss.forexfactory.com
 
 6. Create a minimal README.md that says the project is the FX Morning
    Brief Bot, references CLAUDE.md and masterplan.md for context, and
@@ -572,17 +569,16 @@ Returns a list of event dicts, each with:
 
 Implementation:
 
-Primary approach — Trading Economics API:
-- If TRADING_ECONOMICS_KEY env var is set, use the calendar endpoint:
-  https://api.tradingeconomics.com/calendar
-- Authenticate per their docs (key as query param)
-- Filter by country (United Kingdom, United States) and importance
-  (medium = 2 or high = 3)
-
-Fallback approach:
-- If TRADING_ECONOMICS_KEY is not set, OR the API call fails for any
-  reason, return an empty list with a logged warning
-- Do NOT crash. The morning brief must still work without calendar data.
+Implementation — Forex Factory RSS:
+- Fetch https://rss.forexfactory.com using feedparser (already a dependency,
+  no API key required)
+- Each entry has a title containing the currency and event name
+- Filter to GBP and USD events only
+- Map the FF impact tag to importance: "High" → "high", "Medium" → "medium";
+  skip "Low" and "Non-Economic"
+- Only include events whose time falls within the next `hours_ahead` hours
+- If the feed fetch fails for any reason, return an empty list with a logged
+  warning — do NOT crash. The morning brief must still work without calendar data.
 
 Filter results to:
 - Only UK and US events
@@ -977,7 +973,6 @@ Requirements:
   - TELEGRAM_CHAT_ID
   - NOTION_TOKEN
   - NOTION_DATABASE_ID
-  - TRADING_ECONOMICS_KEY
   - FORCE_RUN (from workflow_dispatch input, empty otherwise)
 
 PART B: Create .github/workflows/end-of-day.yml
@@ -1032,7 +1027,7 @@ Tasks:
 1. Verify all GitHub secrets are set:
    gh secret list
    Should show: ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
-   NOTION_TOKEN, NOTION_DATABASE_ID, TRADING_ECONOMICS_KEY
+   NOTION_TOKEN, NOTION_DATABASE_ID
 
 2. Verify both workflows are visible in GitHub Actions:
    gh workflow list
