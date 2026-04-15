@@ -18,5 +18,9 @@ build/
 # VS Code
 .vscode/
 
+# Local generated research artifacts
+data/*.csv
+data/*.jsonl
+
 # API keys scratch file — never commit
 apikeys.md

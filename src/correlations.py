@@ -1,17 +1,14 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-import pytz
 import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
-LONDON = pytz.timezone("Europe/London")
-
 TICKERS = {
-    "dxy": "DX-Y.NYB",
-    "gold": "GC=F",
-    "es": "ES=F",
+    "dxy": ("DX-Y.NYB", "DXY (US Dollar Index)"),
+    "gold": ("GC=F", "Gold"),
+    "es": ("ES=F", "ES (S&P 500 futures)"),
 }
 
 
@@ -43,10 +40,8 @@ def _fetch_24h(ticker_symbol: str) -> tuple[float | None, float | None]:
             return None, None
 
         current = float(df["Close"].iloc[-1])
-        # Find bar closest to 24h before the last bar
         last_time = df.index[-1]
         target_time = last_time - timedelta(hours=24)
-        # Get the bar whose timestamp is closest to target_time
         diffs = abs(df.index - target_time)
         closest_idx = diffs.argmin()
         price_24h_ago = float(df["Close"].iloc[closest_idx])
@@ -57,6 +52,14 @@ def _fetch_24h(ticker_symbol: str) -> tuple[float | None, float | None]:
         return None, None
 
 
+def _fmt(label: str, data: dict, decimals: int = 2) -> str:
+    if data["current"] is None:
+        return f"{label}: data unavailable"
+    sign = "+" if (data["change_pct_24h"] or 0) >= 0 else ""
+    chg = f"{sign}{data['change_pct_24h']:.3f}%" if data["change_pct_24h"] is not None else "n/a"
+    return f"{label}: {data['direction']} ({chg})"
+
+
 def get_correlations() -> dict:
     """
     Fetch DXY, gold, and ES futures context.
@@ -65,13 +68,15 @@ def get_correlations() -> dict:
     """
     results = {}
 
-    for key, symbol in TICKERS.items():
+    for key, (symbol, display_name) in TICKERS.items():
         current, price_24h = _fetch_24h(symbol)
         if current is not None and price_24h is not None and price_24h != 0:
             change_pct = round((current - price_24h) / price_24h * 100, 3)
         else:
             change_pct = None
         results[key] = {
+            "symbol": symbol,
+            "display_name": display_name,
             "current": current,
             "change_pct_24h": change_pct,
             "direction": _direction(change_pct),
@@ -81,11 +86,10 @@ def get_correlations() -> dict:
     gold = results["gold"]
     es = results["es"]
 
-    # Risk tone logic
     es_dir = es["direction"]
     gold_dir = gold["direction"]
 
-    if es_dir in ("Unknown",) or gold_dir in ("Unknown",):
+    if es_dir == "Unknown" or gold_dir == "Unknown":
         risk_tone = "Unknown"
     elif es_dir in ("Up", "Strong Up") and gold_dir in ("Down", "Strong Down", "Flat"):
         risk_tone = "Risk On"
@@ -94,45 +98,44 @@ def get_correlations() -> dict:
     else:
         risk_tone = "Mixed"
 
-    def _fmt(label: str, data: dict, decimals: int = 2) -> str:
-        if data["current"] is None:
-            return f"{label}: data unavailable"
-        sign = "+" if (data["change_pct_24h"] or 0) >= 0 else ""
-        chg = f"{sign}{data['change_pct_24h']:.3f}%" if data["change_pct_24h"] is not None else "n/a"
-        return f"{label}: {data['current']:.{decimals}f} ({chg}, {data['direction']})"
-
     risk_desc = {
-        "Risk On": "equities firm, gold soft, USD mixed",
-        "Risk Off": "equities weak, gold bid, defensive tone",
-        "Mixed": "conflicting signals across asset classes",
-        "Unknown": "insufficient data to assess",
+        "Risk On": "equity futures are firmer and gold is softer, which often points to steadier risk appetite",
+        "Risk Off": "equity futures are weaker and gold is firmer, which often points to a more defensive mood",
+        "Mixed": "the broader market signals are not aligned in one clear direction",
+        "Unknown": "there is not enough data to judge the broader market mood cleanly",
     }.get(risk_tone, "")
 
-    correlations_text = "\n".join([
-        _fmt("DXY", dxy, decimals=2),
-        _fmt("Gold", gold, decimals=2),
-        _fmt("ES futures", es, decimals=2),
-        f"Risk tone: {risk_tone}" + (f" — {risk_desc}" if risk_desc else ""),
-    ])
+    correlations_text = "\n".join(
+        [
+            _fmt(dxy["display_name"], dxy),
+            _fmt(gold["display_name"], gold),
+            _fmt(es["display_name"], es),
+            f"Risk tone: {risk_tone}" + (f" — {risk_desc}" if risk_desc else ""),
+        ]
+    )
 
     return {
         "dxy_current": dxy["current"],
         "dxy_change_pct_24h": dxy["change_pct_24h"],
         "dxy_direction": dxy["direction"],
+        "dxy_display_name": dxy["display_name"],
         "gold_current": gold["current"],
         "gold_change_pct_24h": gold["change_pct_24h"],
         "gold_direction": gold["direction"],
+        "gold_display_name": gold["display_name"],
         "es_current": es["current"],
         "es_change_pct_24h": es["change_pct_24h"],
         "es_direction": es["direction"],
+        "es_display_name": es["display_name"],
         "risk_tone": risk_tone,
         "correlations_text": correlations_text,
     }
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
     import pprint
+
+    logging.basicConfig(level=logging.INFO)
     result = get_correlations()
     print("\n--- Correlations ---")
     pprint.pprint(result)

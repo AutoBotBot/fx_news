@@ -17,7 +17,10 @@ from datetime import datetime
 import pytz
 from dotenv import load_dotenv
 
-from src import block_data, notion_log
+from src import block_data, notion_log, price_data
+from src.research_dataset import sync_labels_from_notion, upsert_session_row
+from src.research_features import build_session_features
+from src.run_health import record_run_health
 from src.telegram_send import escape_markdown_v2, send_message
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -84,6 +87,20 @@ def _build_telegram_message(blocks: dict, notion_url: str | None, today_uk: date
     return "\n".join(lines)
 
 
+def _infer_volatility_actual(session_range_pips: float | None, avg_daily_range_pips: float | None) -> str | None:
+    if session_range_pips is None or avg_daily_range_pips is None or avg_daily_range_pips <= 0:
+        return None
+    baseline = avg_daily_range_pips / 4
+    if baseline <= 0:
+        return None
+    ratio = session_range_pips / baseline
+    if ratio >= 1.4:
+        return "Expansion"
+    if ratio <= 0.7:
+        return "Contraction"
+    return "Normal"
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -110,11 +127,23 @@ def main() -> None:
             sys.exit(0)
 
     logger.info("Starting end-of-day capture — %s UK", now_uk.strftime("%Y-%m-%d %H:%M"))
+    health = {
+        "run_type": "end_of_day",
+        "telegram_sent": 0,
+        "notion_written": 0,
+        "research_exported": 0,
+    }
 
     # --- Fetch block data ---
     blocks: dict = {}
+    volatility_actual = None
     try:
         blocks = block_data.get_daily_blocks()
+        market_context = price_data.get_market_context()
+        volatility_actual = _infer_volatility_actual(
+            blocks["session_block"].get("range_pips"),
+            market_context.get("range_20day_avg_pips"),
+        )
         logger.info(
             "Blocks fetched — Asian: %s pips, Open: %s pips, Session: %s pips",
             blocks["asian_block"].get("range_pips"),
@@ -135,8 +164,11 @@ def main() -> None:
             asian_block=blocks["asian_block"],
             open_block=blocks["open_block"],
             session_block=blocks["session_block"],
+            volatility_actual=volatility_actual,
         )
         notion_url = notion_log.get_page_url(page_id)
+        health["notion_written"] = 1
+        health["notion_url"] = notion_url
         logger.info("Block data written to Notion: %s", notion_url)
     except Exception as e:
         logger.error("Notion write failed: %s", e)
@@ -151,14 +183,26 @@ def main() -> None:
         _send(fallback, parse_mode=None)
         sys.exit(1)
 
+    try:
+        research_row = build_session_features(now_uk)
+        upsert_session_row(research_row)
+        sync_labels_from_notion(days_back=7)
+        health["research_exported"] = 1
+        logger.info("Session research row exported")
+    except Exception as e:
+        logger.error("Research export failed: %s", e)
+        _alert("research_export", str(e))
+
     # --- Telegram confirmation ---
     tg_msg = _build_telegram_message(blocks, notion_url, now_uk)
     ok = _send(tg_msg)
     if ok:
+        health["telegram_sent"] = 1
         logger.info("Telegram confirmation sent")
     else:
         logger.error("Telegram send failed — block data is in Notion: %s", notion_url)
 
+    record_run_health(health)
     logger.info("End-of-day capture complete")
 
 

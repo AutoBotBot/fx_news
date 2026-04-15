@@ -9,7 +9,7 @@ whether content already exists (idempotency guard).
 
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytz
 from dotenv import load_dotenv
@@ -83,6 +83,39 @@ def _heading3(text: str) -> dict:
     }
 
 
+def _plain_text_from_title_prop(prop: dict) -> str:
+    title = prop.get("title", [])
+    return "".join(part.get("plain_text", "") for part in title)
+
+
+def _multi_select_names(prop: dict) -> list[str]:
+    return [item.get("name", "") for item in prop.get("multi_select", []) if item.get("name")]
+
+
+def _apply_page_defaults(notion: Client, page_id: str, props: dict | None = None) -> None:
+    props = props or {}
+    updates = {}
+
+    if props.get("Trades Taken", {}).get("number") is None:
+        updates["Trades Taken"] = {"number": 0}
+    if props.get("Net R", {}).get("number") is None:
+        updates["Net R"] = {"number": 0}
+    if props.get("Net £", {}).get("number") is None:
+        updates["Net £"] = {"number": 0}
+    if "Brief Useful" in props and props["Brief Useful"].get("checkbox") is None:
+        updates["Brief Useful"] = {"checkbox": False}
+    if "Followed Rules" in props and props["Followed Rules"].get("checkbox") is None:
+        updates["Followed Rules"] = {"checkbox": False}
+
+    if not updates:
+        return
+
+    try:
+        notion.pages.update(page_id=page_id, properties=updates)
+    except APIResponseError as e:
+        logger.error("Failed to apply page defaults: %s", e)
+
+
 def _get_section_blocks(notion: Client, page_id: str) -> dict[str, list]:
     """
     Return a mapping of section heading text → list of content blocks
@@ -108,6 +141,13 @@ def _get_section_blocks(notion: Client, page_id: str) -> dict[str, list]:
             sections[current_section].append(block)
 
     return sections
+
+
+def section_has_content(page_id: str, section_heading: str) -> bool:
+    """Return True when the given heading_2 section already has content blocks."""
+    notion = _client()
+    section_blocks = _get_section_blocks(notion, page_id)
+    return bool(section_blocks.get(section_heading))
 
 
 def _append_blocks_to_section(
@@ -199,6 +239,7 @@ def get_or_create_today_page() -> str:
         pages = results.get("results", [])
         if pages:
             page_id = pages[0]["id"]
+            _apply_page_defaults(notion, page_id, pages[0].get("properties", {}))
             logger.info("Found existing page: %s", page_id)
             return page_id
     except APIResponseError as e:
@@ -215,10 +256,17 @@ def get_or_create_today_page() -> str:
             properties={
                 "Name": {"title": [{"text": {"content": title}}]},
                 "Date": {"date": {"start": today_date_str}},
+                "Trades Taken": {"number": 0},
+                "Net R": {"number": 0},
+                "Net £": {"number": 0},
+                "Brief Useful": {"checkbox": False},
+                "Followed Rules": {"checkbox": False},
+                "Tags": {"multi_select": []},
             },
             children=[_heading2(s) for s in SECTIONS],
         )
         page_id = page["id"]
+        _apply_page_defaults(notion, page_id, page.get("properties", {}))
         logger.info("Created new page '%s': %s", title, page_id)
         return page_id
     except APIResponseError as e:
@@ -234,6 +282,7 @@ def populate_morning_brief(
     levels_text: str,
     correlations_text: str,
     properties: dict,
+    explainer_lines: list[str] | None = None,
 ) -> None:
     """
     Populate morning brief sections and update page properties.
@@ -248,9 +297,13 @@ def populate_morning_brief(
 
     # Morning Brief
     if not section_blocks["🌅 Morning Brief"]:
+        morning_blocks = [_paragraph(line) for line in brief_text.split("\n") if line.strip()]
+        if explainer_lines:
+            morning_blocks.append(_heading3("Quick explainer"))
+            morning_blocks.extend(_bullet(line) for line in explainer_lines)
         _append_blocks_to_section(
             notion, page_id, "🌅 Morning Brief",
-            [_paragraph(line) for line in brief_text.split("\n") if line.strip()],
+            morning_blocks,
         )
     else:
         logger.warning("'🌅 Morning Brief' already has content — skipping to avoid duplicate")
@@ -258,7 +311,7 @@ def populate_morning_brief(
     # Overnight Headlines
     if not section_blocks["📰 Overnight Headlines"]:
         headline_blocks = [
-            _bullet(f"[{h['source']}] {h['title']} ({h['published']})")
+            _bullet(h.get("display_text") or f"[{h['source']}] {h['title']} ({h['published']})")
             for h in headlines
         ] or [_paragraph("No headlines found.")]
         _append_blocks_to_section(
@@ -316,6 +369,7 @@ def populate_morning_brief(
         "Yesterday High": ("number", properties.get("yesterday_high")),
         "Yesterday Low": ("number", properties.get("yesterday_low")),
         "DXY Direction": ("select", properties.get("dxy_direction")),
+        "News Impact": ("select", properties.get("news_impact")),
     }
     for prop_name, (prop_type, value) in prop_map.items():
         if value is None:
@@ -337,6 +391,7 @@ def populate_block_data(
     asian_block: dict,
     open_block: dict,
     session_block: dict,
+    volatility_actual: str | None = None,
 ) -> None:
     """
     Append block data under '📊 Daily Block Data'.
@@ -350,27 +405,36 @@ def populate_block_data(
         logger.warning("'📊 Daily Block Data' already has content — skipping")
         return
 
+    def _fmt_block(label: str, block: dict) -> str:
+        if block.get("high") is None or block.get("low") is None or block.get("range_pips") is None:
+            return (
+                f"{label} ({block['time_start']}–{block['time_end']} UK): "
+                "No data available for this block."
+            )
+        return (
+            f"{label} ({block['time_start']}–{block['time_end']} UK): "
+            f"High {block['high']:.5f}, Low {block['low']:.5f}, "
+            f"Range {block['range_pips']:.1f} pips"
+        )
+
     lines = [
-        (
-            f"Asian Block ({asian_block['time_start']}–{asian_block['time_end']} UK): "
-            f"High {asian_block['high']:.5f}, Low {asian_block['low']:.5f}, "
-            f"Range {asian_block['range_pips']:.1f} pips"
-        ),
-        (
-            f"Open Block ({open_block['time_start']}–{open_block['time_end']} UK): "
-            f"High {open_block['high']:.5f}, Low {open_block['low']:.5f}, "
-            f"Range {open_block['range_pips']:.1f} pips"
-        ),
-        (
-            f"Session Block ({session_block['time_start']}–{session_block['time_end']} UK): "
-            f"High {session_block['high']:.5f}, Low {session_block['low']:.5f}, "
-            f"Range {session_block['range_pips']:.1f} pips"
-        ),
+        _fmt_block("Asian Block", asian_block),
+        _fmt_block("Open Block", open_block),
+        _fmt_block("Session Block", session_block),
     ]
     _append_blocks_to_section(
         notion, page_id, "📊 Daily Block Data",
         [_paragraph(line) for line in lines],
     )
+
+    if volatility_actual:
+        try:
+            notion.pages.update(
+                page_id=page_id,
+                properties={"Volatility Actual": {"select": {"name": volatility_actual}}},
+            )
+        except APIResponseError as e:
+            logger.error("Failed to update Volatility Actual: %s", e)
 
 
 def append_trade(page_id: str, trade: dict) -> None:
@@ -435,6 +499,55 @@ def get_page_url(page_id: str) -> str:
     """Return the Notion URL for a page."""
     clean_id = page_id.replace("-", "")
     return f"https://notion.so/{clean_id}"
+
+
+def list_recent_page_summaries(days_back: int = 30) -> list[dict]:
+    """Return recent Daily Trading Log records for dataset sync."""
+    notion = _client()
+    db_id = os.environ["NOTION_DATABASE_ID"]
+    cutoff = (_today_uk() - timedelta(days=days_back)).strftime("%Y-%m-%d")
+
+    try:
+        results = notion.request(
+            path=f"databases/{db_id}/query",
+            method="POST",
+            body={
+                "filter": {
+                    "property": "Date",
+                    "date": {"on_or_after": cutoff},
+                },
+                "page_size": 100,
+            },
+        )
+    except APIResponseError as e:
+        logger.error("Failed to list recent pages: %s", e)
+        return []
+
+    rows = []
+    for page in results.get("results", []):
+        props = page.get("properties", {})
+        date_prop = props.get("Date", {}).get("date") or {}
+        session_date = date_prop.get("start")
+        if not session_date:
+            continue
+
+        rows.append(
+            {
+                "page_id": page["id"],
+                "session_date": session_date[:10],
+                "name": _plain_text_from_title_prop(props.get("Name", {})),
+                "trades_taken": props.get("Trades Taken", {}).get("number"),
+                "net_r": props.get("Net R", {}).get("number"),
+                "net_gbp": props.get("Net £", {}).get("number"),
+                "volatility_actual": (props.get("Volatility Actual", {}).get("select") or {}).get("name"),
+                "brief_useful": props.get("Brief Useful", {}).get("checkbox"),
+                "followed_rules": props.get("Followed Rules", {}).get("checkbox"),
+                "tags": _multi_select_names(props.get("Tags", {})),
+            }
+        )
+
+    rows.sort(key=lambda row: row["session_date"])
+    return rows
 
 
 if __name__ == "__main__":
